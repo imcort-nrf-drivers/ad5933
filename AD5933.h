@@ -122,7 +122,7 @@ byte AD5933readStatusRegister(void);
 int AD5933readControlRegister(void);
 
 // Impedance data
-bool AD5933getComplexData(int*, int*);
+bool AD5933getComplexData(int16_t*, int16_t*);
 
 // Set control mode register (CTRL_REG1)
 bool AD5933setControlMode(byte);
@@ -131,7 +131,7 @@ bool AD5933setControlMode(byte);
 bool AD5933setPowerMode(byte);
 
 // Perform frequency sweeps
-bool AD5933frequencySweep(int real[], int imag[], int);
+bool AD5933frequencySweep(int16_t real[], int16_t imag[], int);
 bool AD5933calibrate(double gain[], int phase[], int ref, int n);
 //static bool AD5933calibrate(double gain[], int phase[], int real[],
 //                        int imag[], int ref, int n);
@@ -140,7 +140,7 @@ bool AD5933calibrate(double gain[], int phase[], int ref, int n);
 //unsigned long clockSpeed = 16776000;
 
 // Sending/Receiving byte method, for easy re-use
-int AD5933getByte(byte, byte*);
-bool AD5933sendByte(byte, byte);
+//int AD5933getByte(byte, byte*);
+//bool AD5933sendByte(byte, byte);
 
 #endif

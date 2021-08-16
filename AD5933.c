@@ -11,10 +11,11 @@
 #include "AD5933.h"
 #include <Math.h>
 
-#include "nrf_drv_twi.h"
-//#include "nrf_malloc.h"
+#include "transfer_handler.h"
+//#include "nrf_drv_twi.h"
+////#include "nrf_malloc.h"
 
-extern nrf_drv_twi_t m_twi;
+//extern nrf_drv_twi_t m_twi;
 
 /**
  * Request to read a byte from the AD5933.
@@ -26,33 +27,9 @@ extern nrf_drv_twi_t m_twi;
  */
 int AD5933getByte(byte address, byte *value) {
     // Request to read a byte using the address pointer register
-		//    Wire.beginTransmission(AD5933_ADDR);
-		//    Wire.write(ADDR_PTR);
-		//    Wire.write(address);
-
-		//    // Ensure transmission worked
-		//    if (byte res = Wire.endTransmission() != I2C_RESULT_SUCCESS) {
-		//        *value = res;
-		//        return false;
-		//    }
-
-		//    // Read the byte from the written address
-		//    Wire.requestFrom(AD5933_ADDR, 1);
-		//    if (Wire.available()) {
-		//        *value = Wire.read();
-		//        return true;
-		//    } else {
-		//        *value = 0;
-		//        return false;
-		//    }
 	
-	ret_code_t err_code;
-	
-	err_code = nrf_drv_twi_tx(&m_twi, AD5933_ADDR, &address, 1, true);
-	APP_ERROR_CHECK(err_code);
-		
-	err_code = nrf_drv_twi_rx(&m_twi, AD5933_ADDR, value, 1);
-	APP_ERROR_CHECK(err_code);
+    iic_send(AD5933_ADDR, &address, 1, true);
+	iic_read(AD5933_ADDR, value, 1);
 	
 	return true;
 }
@@ -66,23 +43,12 @@ int AD5933getByte(byte address, byte *value) {
  */
 bool AD5933sendByte(byte address, byte value) {
     // Send byte to address
-//    Wire.beginTransmission(AD5933_ADDR);
-//    Wire.write(address);
-//    Wire.write(value);
-
-//    // Check that transmission completed successfully
-//    if (byte res = Wire.endTransmission() != I2C_RESULT_SUCCESS) {
-//        return false;
-//    } else {
-//        return true;
-//    }
+    
 	uint8_t configData[2];
 	configData[0] = address;
-  configData[1] = value;
+    configData[1] = value;
 	
-	ret_code_t err_code;
-	err_code = nrf_drv_twi_tx(&m_twi, AD5933_ADDR, configData, 2, false);
-	APP_ERROR_CHECK(err_code);
+	iic_send(AD5933_ADDR, configData, 2, false);
 	
 	return true;
 }
@@ -358,7 +324,7 @@ int AD5933readControlRegister() {
  * @param imag Pointer to an int that will contain the imaginary component.
  * @return Success or failure
  */
-bool AD5933getComplexData(int *real, int *imag) {
+bool AD5933getComplexData(int16_t *real, int16_t *imag) {
     // Wait for a measurement to be available
     while ((AD5933readStatusRegister() & STATUS_DATA_VALID) != STATUS_DATA_VALID);
 
@@ -412,7 +378,7 @@ bool AD5933setPowerMode(byte level) {
  * @param n Length of the array (or the number of discrete measurements)
  * @return Success or failure
  */
-bool AD5933frequencySweep(int real[], int imag[], int n) {
+bool AD5933frequencySweep(int16_t real[], int16_t imag[], int n) {
     // Begin by issuing a sequence of commands
     // If the commands aren't taking hold, add a brief delay
     if (!(AD5933setPowerMode(POWER_STANDBY) &&         // place in standby
@@ -453,28 +419,28 @@ bool AD5933frequencySweep(int real[], int imag[], int n) {
  * @param n Length of the array (or the number of discrete measurements)
  * @return Success or failure
  */
-bool AD5933calibrate(double gain[], int phase[], int ref, int n) {
-    // We need arrays to hold the real and imaginary values temporarily
-    int real[n];
-    int imag[n];
+//bool AD5933calibrate(double gain[], int phase[], int ref, int n) {
+//    // We need arrays to hold the real and imaginary values temporarily
+//    int real[n];
+//    int imag[n];
 
-    // Perform the frequency sweep
-    if (!AD5933frequencySweep(real, imag, n)) {
-//        delete [] real;
-//        delete [] imag;
-        return false;
-    }
+//    // Perform the frequency sweep
+//    if (!AD5933frequencySweep(real, imag, n)) {
+////        delete [] real;
+////        delete [] imag;
+//        return false;
+//    }
 
-    // For each point in the sweep, calculate the gain factor and phase
-    for (int i = 0; i < n; i++) {
-        gain[i] = (double)(1.0/ref)/sqrt(pow(real[i], 2) + pow(imag[i], 2));
-        // TODO: phase
-    }
+//    // For each point in the sweep, calculate the gain factor and phase
+//    for (int i = 0; i < n; i++) {
+//        gain[i] = (double)(1.0/ref)/sqrt(pow(real[i], 2) + pow(imag[i], 2));
+//        // TODO: phase
+//    }
 
-//    delete [] real;
-//    delete [] imag;
-    return true;
-}
+////    delete [] real;
+////    delete [] imag;
+//    return true;
+//}
 
 /**
  * Computes the gain factor and phase for each point in a frequency sweep.
