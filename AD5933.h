@@ -88,6 +88,11 @@ typedef unsigned char byte;
 // Frequency sweep parameters
 #define SWEEP_DELAY             (1)
 #define clockSpeed 16776000
+
+#define CTRL_OUTPUT_RANGE_1		(0X00)
+#define CTRL_OUTPUT_RANGE_2		(0X06)
+#define CTRL_OUTPUT_RANGE_3		(0X04)
+#define CTRL_OUTPUT_RANGE_4		(0X02)
 /**
  * AD5933 Library class
  *  Contains mainly functions for interfacing with the AD5933.

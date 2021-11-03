@@ -21,12 +21,14 @@
  *        where the error code will be stored if fail.
  * @return Success or failure
  */
-int AD5933getByte(byte address, byte *value) {
+int AD5933getByte(uint8_t address, uint8_t *value) {
     // Request to read a byte using the address pointer register
 	
     iic_send(AD5933_ADDR, &address, 1, true);
 	iic_read(AD5933_ADDR, value, 1);
 	
+    NRF_LOG_INFO("Read %x", *value);
+    
 	return true;
 }
 
@@ -69,6 +71,47 @@ bool AD5933setControlMode(byte mode) {
     val |= mode;
 
     // Write back to the register
+    return AD5933sendByte(CTRL_REG1, val);
+}
+
+bool AD5933setRange(byte range)
+{
+    byte val;
+
+    // Get the current value of the control register
+    if(!AD5933getByte(CTRL_REG1, &val))
+    {
+        return false;
+    }
+
+    // Clear out the bottom bit, D9 and D10, which is the output voltage range set bit
+    val &=  0xF9;
+
+    // Determine what output voltage range was selected
+    switch (range)
+    {
+        case CTRL_OUTPUT_RANGE_2:
+            // Set output voltage range to 1.0 V p-p typical in CTRL_REG1
+            val |= CTRL_OUTPUT_RANGE_2;
+            break;
+
+        case CTRL_OUTPUT_RANGE_3:
+            // Set output voltage range to 400 mV p-p typical in CTRL_REG1
+            val |= CTRL_OUTPUT_RANGE_3;
+            break;
+        
+        case CTRL_OUTPUT_RANGE_4:
+            // Set output voltage range to 200 mV p-p typical in CTRL_REG1
+            val |= CTRL_OUTPUT_RANGE_4;
+            break;
+
+        default:
+            // Set output voltage range to 200 mV p-p typical in CTRL_REG1
+            val |= CTRL_OUTPUT_RANGE_1;
+            break;
+    }
+
+    //Write to register
     return AD5933sendByte(CTRL_REG1, val);
 }
 
@@ -382,7 +425,7 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
     
     static int i = 0;
     
-    NRF_LOG_INFO("state %d", AcqStateMachine);
+    //NRF_LOG_INFO("state %d", AcqStateMachine);
     
     switch(AcqStateMachine)
     {
@@ -403,13 +446,13 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
         case 2:
             ;
             uint8_t ret = AD5933readStatusRegister();
-            NRF_LOG_INFO("Convert result %d", ret);
+            //NRF_LOG_INFO("Convert result %d", ret);
             if (ret & STATUS_DATA_VALID) 
             {
                 NRF_LOG_INFO("Convert completed");
                 //if (i < n)
                 {
-                    if (AD5933getComplexData(real, imag))
+                    if (AD5933getComplexData(real + i, imag + i))
                     {
                         i++;
                         AcqStateMachine = 3;
@@ -445,38 +488,6 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
     
     }
     
-//    if(!acqing)
-//    {
-//    
-//        if (!(AD5933setPowerMode(POWER_STANDBY) &&         // place in standby
-//             AD5933setControlMode(CTRL_INIT_START_FREQ) && // init start freq
-//             AD5933setControlMode(CTRL_START_FREQ_SWEEP))) // begin frequency sweep
-//             {
-//                 return false;
-//             }
-//        acqing = true;
-//             
-//    } else {
-//        // Perform the sweep. Make sure we don't exceed n.
-//        int i = 0;
-//        if ((AD5933readStatusRegister() & STATUS_SWEEP_DONE) == STATUS_SWEEP_DONE) {
-//            // Make sure we aren't exceeding the bounds of our buffer
-//            
-
-//            // Get the data for this frequency point and store it in the array
-//            if (!AD5933getComplexData(&real[i], &imag[i])) {
-//                return false;
-//            }
-
-//            acqing = false;
-//            // Put into standby
-//            AD5933setPowerMode(POWER_STANDBY);
-//            return true;
-//        }
-//        return false;
-//        
-//    }
-    
 }
 
 bool AD5933_begin(void)
@@ -488,8 +499,9 @@ bool AD5933_begin(void)
     AD5933reset();
     AD5933setClockSource(CLOCK_INTERNAL);
     AD5933setPGAGain(PGA_GAIN_X1);
+    AD5933setRange(CTRL_OUTPUT_RANGE_1);
     
-    AD5933setStartFrequency(100000);
+    AD5933setStartFrequency(7000);
     AD5933setIncrementFrequency(100);
     AD5933setNumberIncrements(1);
     
