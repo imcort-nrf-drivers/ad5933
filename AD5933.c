@@ -12,10 +12,6 @@
 #include <Math.h>
 
 #include "transfer_handler.h"
-//#include "nrf_drv_twi.h"
-////#include "nrf_malloc.h"
-
-//extern nrf_drv_twi_t m_twi;
 
 /**
  * Request to read a byte from the AD5933.
@@ -378,94 +374,129 @@ bool AD5933setPowerMode(byte level) {
  * @param n Length of the array (or the number of discrete measurements)
  * @return Success or failure
  */
-bool AD5933frequencySweep(int16_t real[], int16_t imag[], int n) {
+int AcqStateMachine = 0;
+
+bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
     // Begin by issuing a sequence of commands
     // If the commands aren't taking hold, add a brief delay
-    if (!(AD5933setPowerMode(POWER_STANDBY) &&         // place in standby
-         AD5933setControlMode(CTRL_INIT_START_FREQ) && // init start freq
-         AD5933setControlMode(CTRL_START_FREQ_SWEEP))) // begin frequency sweep
-         {
-             return false;
-         }
-
-    // Perform the sweep. Make sure we don't exceed n.
-    int i = 0;
-    while ((AD5933readStatusRegister() & STATUS_SWEEP_DONE) != STATUS_SWEEP_DONE) {
-        // Make sure we aren't exceeding the bounds of our buffer
-        if (i >= n) {
+    
+    static int i = 0;
+    
+    NRF_LOG_INFO("state %d", AcqStateMachine);
+    
+    switch(AcqStateMachine)
+    {
+        case 0:
+            if(AD5933setControlMode(CTRL_INIT_START_FREQ))
+            {
+                AcqStateMachine = 1;
+                
+            }
+                return false;
+        case 1:
+            if(AD5933setControlMode(CTRL_START_FREQ_SWEEP))
+            {
+                AcqStateMachine = 2;
+                i = 0;
+            }
+                return false;
+        case 2:
+            ;
+            uint8_t ret = AD5933readStatusRegister();
+            NRF_LOG_INFO("Convert result %d", ret);
+            if (ret & STATUS_DATA_VALID) 
+            {
+                NRF_LOG_INFO("Convert completed");
+                //if (i < n)
+                {
+                    if (AD5933getComplexData(real, imag))
+                    {
+                        i++;
+                        AcqStateMachine = 3;
+                        return true;
+                    }
+                }
+                
+            }
             return false;
-        }
-
-        // Get the data for this frequency point and store it in the array
-        if (!AD5933getComplexData(&real[i], &imag[i])) {
+        case 3:
+            
+            if (i < n)
+            {
+                if(AD5933setControlMode(CTRL_INCREMENT_FREQ))
+                {
+                    AcqStateMachine = 2;
+                    return false;
+                }
+                    
+            } else 
+            {
+                i=0;
+                AcqStateMachine = 4;
+                return false;
+            }
+        
+        case 4:
+            
+            AD5933setPowerMode(POWER_STANDBY);
+            AcqStateMachine = 0;
             return false;
-        }
-
-        // Increment the frequency and our index.
-        i++;
-        AD5933setControlMode(CTRL_INCREMENT_FREQ);
+            
+    
     }
+    
+//    if(!acqing)
+//    {
+//    
+//        if (!(AD5933setPowerMode(POWER_STANDBY) &&         // place in standby
+//             AD5933setControlMode(CTRL_INIT_START_FREQ) && // init start freq
+//             AD5933setControlMode(CTRL_START_FREQ_SWEEP))) // begin frequency sweep
+//             {
+//                 return false;
+//             }
+//        acqing = true;
+//             
+//    } else {
+//        // Perform the sweep. Make sure we don't exceed n.
+//        int i = 0;
+//        if ((AD5933readStatusRegister() & STATUS_SWEEP_DONE) == STATUS_SWEEP_DONE) {
+//            // Make sure we aren't exceeding the bounds of our buffer
+//            
 
-    // Put into standby
-    return AD5933setPowerMode(POWER_STANDBY);
+//            // Get the data for this frequency point and store it in the array
+//            if (!AD5933getComplexData(&real[i], &imag[i])) {
+//                return false;
+//            }
+
+//            acqing = false;
+//            // Put into standby
+//            AD5933setPowerMode(POWER_STANDBY);
+//            return true;
+//        }
+//        return false;
+//        
+//    }
+    
 }
 
-/**
- * Computes the gain factor and phase for each point in a frequency sweep.
- *
- * @param gain An array of appropriate size to hold the gain factors
- * @param phase An array of appropriate size to hold phase data.
- * @param ref The known reference resistance.
- * @param n Length of the array (or the number of discrete measurements)
- * @return Success or failure
- */
-//bool AD5933calibrate(double gain[], int phase[], int ref, int n) {
-//    // We need arrays to hold the real and imaginary values temporarily
-//    int real[n];
-//    int imag[n];
+bool AD5933_begin(void)
+{
+    
+    //Communication init.
+    iic_init();
+    
+    AD5933reset();
+    AD5933setClockSource(CLOCK_INTERNAL);
+    AD5933setPGAGain(PGA_GAIN_X1);
+    
+    AD5933setStartFrequency(100000);
+    AD5933setIncrementFrequency(100);
+    AD5933setNumberIncrements(1);
+    
+    AD5933setPowerMode(POWER_STANDBY);
+    
+    return 0;
 
-//    // Perform the frequency sweep
-//    if (!AD5933frequencySweep(real, imag, n)) {
-////        delete [] real;
-////        delete [] imag;
-//        return false;
-//    }
 
-//    // For each point in the sweep, calculate the gain factor and phase
-//    for (int i = 0; i < n; i++) {
-//        gain[i] = (double)(1.0/ref)/sqrt(pow(real[i], 2) + pow(imag[i], 2));
-//        // TODO: phase
-//    }
+}
 
-////    delete [] real;
-////    delete [] imag;
-//    return true;
-//}
-
-/**
- * Computes the gain factor and phase for each point in a frequency sweep.
- * Also provides the caller with the real and imaginary data.
- *
- * @param gain An array of appropriate size to hold the gain factors
- * @param phase An array of appropriate size to hold the phase data
- * @param real An array of appropriate size to hold the real data
- * @param imag An array of appropriate size to hold the imaginary data.
- * @param ref The known reference resistance.
- * @param n Length of the array (or the number of discrete measurements)
- * @return Success or failure
- */
-// bool AD5933calibrate(double gain[], int phase[], int real[], int imag[],
-//                        int ref, int n) {
-//     // Perform the frequency sweep
-//     if (!AD5933frequencySweep(real, imag, n)) {
-//         return false;
-//     }
-
-//     // For each point in the sweep, calculate the gain factor and phase
-//     for (int i = 0; i < n; i++) {
-//         gain[i] = (double)(1.0/ref)/sqrt(pow(real[i], 2) + pow(imag[i], 2));
-//         // TODO: phase
-//     }
-
-//     return true;
-// }

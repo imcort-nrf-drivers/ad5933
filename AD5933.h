@@ -131,11 +131,11 @@ bool AD5933setControlMode(byte);
 bool AD5933setPowerMode(byte);
 
 // Perform frequency sweeps
-bool AD5933frequencySweep(int16_t real[], int16_t imag[], int);
+bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n);
 bool AD5933calibrate(double gain[], int phase[], int ref, int n);
 //static bool AD5933calibrate(double gain[], int phase[], int real[],
 //                        int imag[], int ref, int n);
-
+bool AD5933_begin(void);
 // Private data
 //unsigned long clockSpeed = 16776000;
 
