@@ -27,7 +27,7 @@ int AD5933getByte(uint8_t address, uint8_t *value) {
     iic_send(AD5933_ADDR, &address, 1, true);
 	iic_read(AD5933_ADDR, value, 1);
 	
-    NRF_LOG_INFO("Read %x", *value);
+    //NRF_LOG_INFO("Read %x", *value);
     
 	return true;
 }
@@ -420,67 +420,60 @@ bool AD5933setPowerMode(byte level) {
 int AcqStateMachine = 0;
 
 bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
-    // Begin by issuing a sequence of commands
-    // If the commands aren't taking hold, add a brief delay
+    
+    // See ad5933_state_machine.drawio
     
     static int i = 0;
-    
-    //NRF_LOG_INFO("state %d", AcqStateMachine);
     
     switch(AcqStateMachine)
     {
         case 0:
             if(AD5933setControlMode(CTRL_INIT_START_FREQ))
             {
+                NRF_LOG_INFO("CTRL_INIT_START_FREQ");
                 AcqStateMachine = 1;
                 
             }
                 return false;
+            
         case 1:
             if(AD5933setControlMode(CTRL_START_FREQ_SWEEP))
             {
+                NRF_LOG_INFO("CTRL_START_FREQ_SWEEP");
                 AcqStateMachine = 2;
                 i = 0;
             }
                 return false;
+            
         case 2:
             ;
             uint8_t ret = AD5933readStatusRegister();
-            //NRF_LOG_INFO("Convert result %d", ret);
             if (ret & STATUS_DATA_VALID) 
             {
-                NRF_LOG_INFO("Convert completed");
-                //if (i < n)
-                {
-                    if (AD5933getComplexData(real + i, imag + i))
-                    {
-                        i++;
-                        AcqStateMachine = 3;
-                        return true;
-                    }
-                }
+                NRF_LOG_INFO("STATUS_DATA_VALID");
                 
-            }
-            return false;
-        case 3:
-            
-            if (i < n)
-            {
-                if(AD5933setControlMode(CTRL_INCREMENT_FREQ))
+                if (AD5933getComplexData(real + i, imag + i))
                 {
-                    AcqStateMachine = 2;
+                    i++;
+                    if(i >= n)
+                    {
+                        NRF_LOG_INFO("All done");
+                        AcqStateMachine = 0;
+                        return true;
+                    } else 
+                    {
+                        AD5933setControlMode(CTRL_INCREMENT_FREQ);
+                        return false;
+                    }
+                } else
+                {
+                    AD5933setControlMode(CTRL_REPEAT_FREQ);
                     return false;
                 }
-                    
-            } else 
-            {
-                i=0;
-                AcqStateMachine = 4;
-                return false;
             }
-        
-        case 4:
+            return false;
             
+        default:
             AD5933setPowerMode(POWER_STANDBY);
             AcqStateMachine = 0;
             return false;
