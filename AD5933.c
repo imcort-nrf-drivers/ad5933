@@ -430,7 +430,7 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
         case 0:
             if(AD5933setControlMode(CTRL_INIT_START_FREQ))
             {
-                NRF_LOG_INFO("CTRL_INIT_START_FREQ");
+                //NRF_LOG_INFO("CTRL_INIT_START_FREQ");
                 AcqStateMachine = 1;
                 
             }
@@ -439,7 +439,7 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
         case 1:
             if(AD5933setControlMode(CTRL_START_FREQ_SWEEP))
             {
-                NRF_LOG_INFO("CTRL_START_FREQ_SWEEP");
+                //NRF_LOG_INFO("CTRL_START_FREQ_SWEEP");
                 AcqStateMachine = 2;
                 i = 0;
             }
@@ -450,7 +450,6 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
             uint8_t ret = AD5933readStatusRegister();
             if (ret & STATUS_DATA_VALID) 
             {
-                NRF_LOG_INFO("STATUS_DATA_VALID");
                 
                 if (AD5933getComplexData(real + i, imag + i))
                 {
@@ -458,11 +457,12 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
                     if(i >= n)
                     {
                         NRF_LOG_INFO("All done");
-                        AcqStateMachine = 0;
-                        return true;
+                        AcqStateMachine = 3;
+                        return false;
                     } else 
                     {
                         AD5933setControlMode(CTRL_INCREMENT_FREQ);
+                        //NRF_LOG_INFO("CTRL_INCREMENT_FREQ");
                         return false;
                     }
                 } else
@@ -476,7 +476,7 @@ bool AD5933frequencySweepAsync(int16_t* real, int16_t* imag, int n) {
         default:
             AD5933setPowerMode(POWER_STANDBY);
             AcqStateMachine = 0;
-            return false;
+            return true;
             
     
     }
@@ -492,11 +492,11 @@ bool AD5933_begin(void)
     AD5933reset();
     AD5933setClockSource(CLOCK_INTERNAL);
     AD5933setPGAGain(PGA_GAIN_X1);
-    AD5933setRange(CTRL_OUTPUT_RANGE_1);
+    AD5933setRange(CTRL_OUTPUT_RANGE_2);
     
-    AD5933setStartFrequency(7000);
+    AD5933setStartFrequency(10000);
     AD5933setIncrementFrequency(100);
-    AD5933setNumberIncrements(1);
+    AD5933setNumberIncrements(10);
     
     AD5933setPowerMode(POWER_STANDBY);
     
